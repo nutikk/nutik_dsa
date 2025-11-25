@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+  contents: read
+  packages: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -11,25 +16,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set version variable
-        run: echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      - name: Extract tag
+        id: vars
+        shell: bash
+        run: | 
+          if [[ -n "${{ github.event.release.tag_name }}" ]]; then 
+            echo "tag=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else 
+            echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Create build folder
-        run: |
-          mkdir -p build/${VERSION}
-          cp -r en ru index.html build/${VERSION}/
-          cp index.html build/
-
-      - name: Save versions.json
-        run: |
-          VERSIONS=$(ls -1 build | grep '^v' | tr '\n' ',' | sed 's/,$//')
-          echo "[\"$VERSIONS\"]" > build/versions.json
-
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./build
-          publish_branch: gh-pages
-          keep_files: true
-          force_orphan: true
+ 
